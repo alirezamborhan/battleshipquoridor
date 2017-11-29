@@ -27,7 +27,7 @@ def menu():
         elif inp == 2:
             quoridor.main()
         elif inp == 3:
-            print("Fairwell to you, me old pal!\n")
+            print("Fairwell to you, me old pal!")
             quit()
         else:
             e = "Enter 1, 2, or 3."

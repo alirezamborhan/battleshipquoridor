@@ -8,7 +8,7 @@ def resetVars():  # Reset variables
     won = [False, 0]  # First item is whether the game has ended, second is the winner.
     e = ""  # For descriptions, explanations and errors.
     players = 0  # Number of players, can be 2 or 4
-    playerChars = ['X', 'Y', 'Z', 'K']  # The character each player receives
+    playerChars = ['', 'X', 'Y', 'Z', 'Q']  # The character each player receives
     emptyChar = '-'  # For empty cells
     wallChar_h = '‒'
     wallChar_v = '|'  # For horizontal and vertical walls
@@ -28,25 +28,26 @@ def getPlayers():
         inp = str(input())
         if inp == '1':
             players = 2
-            A[0][4] = playerChars[0]
-            A[8][4] = playerChars[1]
+            A[0][4] = playerChars[1]
+            A[8][4] = playerChars[2]
             remainingWalls = {1:10, 2:10}
             break
         elif inp == '2':
             players = 4
-            A[0][4] = playerChars[0]
-            A[8][4] = playerChars[1]
-            A[4][0] = playerChars[2]
-            A[4][8] = playerChars[3]
+            A[0][4] = playerChars[1]
+            A[8][4] = playerChars[2]
+            A[4][0] = playerChars[3]
+            A[4][8] = playerChars[4]
             remainingWalls = {1:5, 2:5, 3:5, 4:5}
             break
         else:
             os.system('clear')
             print("Choose 1 or 2.")
 
-def checkWin():  # To see if anyone has won at the end of each turn.
-    global A, player, playerChars, won
-    char = playerChars[player-1]
+def checkWin(player, A):  # To see if anyone has won at the end of each turn.
+    global playerChars
+    won = [False, 0]
+    char = playerChars[player]
     if player == 1:
         if char in A[8]:
             won[0] = True
@@ -63,12 +64,12 @@ def checkWin():  # To see if anyone has won at the end of each turn.
             if A[i][0] == char:
                 won[0] = True
                 break
-    if won[0] == True:
-        won[1] = player
+    won[1] = player
+    return(won)
 
 def nextPlayer():  # Change player
-    global player, players, won
-    checkWin()
+    global player, players, won, A
+    won = checkWin(player, A)
     if not won[0]:
         player += 1
         if (players == 2 and player == 3) or (players == 4 and player == 5):
@@ -87,13 +88,63 @@ def the_q():  # The quitter
     else:
         return False
 
-def checkSurrounded():  # Check to see if putting a wall would surround a pawn.
-    pass
+def clone(theList):  # Make a copy of two dimensional lists to avoid issues with reference value.
+    theList_clone = []
+    for x in theList:
+        theList_clone.append(x.copy())
+    return theList_clone
 
-def play(s):  # Play a move
-    global A, W_h, W_v, AtoI, e, player, playerChars, emptyChar, wallChar_h, remainingWalls
+def check(player, A, W_h, W_v):  # Continuation of checkSurrounded. Works by playing a fake game to see if it can be won.
+    global checked, checkResult, remainingWalls, playerChars
+    char = playerChars[player]
+    A = clone(A)
+    if not checkResult:
+        return
+    for j in range(len(A)):
+        if char in A[j]:
+            p1 = j
+            p2 = A[j].index(char)  # Pawn coordinates
+            break
+    for move in [
+            (p2 <= 7, None if not p2 <= 7 else str(AtoI[p2+1])+" "+str(p1+1)),  # Move right
+            (p2 >= 1, None if not p2 >= 1 else str(AtoI[p2-1])+" "+str(p1+1)),  # Move left
+            (p1 <= 7, None if not p1 <= 7 else str(AtoI[p2])+" "+str(p1+2)),  # Move down
+            (p1 >= 1, None if not p1 >= 1 else str(AtoI[p2])+" "+str(p1)),  # Move up
+            (p2 <= 6, None if not p2 <= 6 else str(AtoI[p2+2])+" "+str(p1+1)),  # Jump pawn to right
+            (p2 >= 2, None if not p2 >= 2 else str(AtoI[p2-2])+" "+str(p1+1)),  # Jump pawn to left
+            (p1 <= 6, None if not p1 <= 6 else str(AtoI[p2])+" "+str(p1+3)),  # Jump pawn to down
+            (p1 >= 2, None if not p1 >= 2 else str(AtoI[p2])+" "+str(p1-1)),  # Jump pawn to up
+]:
+        if move[0]:
+            (A_new, F_new, W_h_new, W_v_new, walls) = play(move[1], A, W_h, W_v, remainingWalls, player)  # Fake play!
+            if not checked.__contains__(A_new):
+                checked.append(A_new)
+                if F_new:
+                    if checkWin(player, A_new)[0]:
+                        checkResult = False
+                        return
+                    else:
+                        check(player, A_new, W_h_new, W_v_new)
+
+def checkSurrounded(A, W_h, W_v):  # Check to see if putting a wall would surround a pawn. True means surrounded, False means not.
+    global e, players, playerChars, checkResult, checked
+    results = []
+    for player in range(1, players+1):
+        checkResult = True
+        checked = [A]
+        check(player, A, W_h, W_v)
+        if checkResult:
+            return True
+    return False
+
+def play(s, A, W_h, W_v, remainingWalls, player):  # Play a move
+    global AtoI, e, playerChars, emptyChar, wallChar_h
+    Next = False  # To see if the player should be changed
+    A = clone(A)
+    W_h = clone(W_h)
+    W_v = clone(W_v)
     s = s.split()
-    char = playerChars[player-1]
+    char = playerChars[player]
     if len(s) == 2 and s[0] in AtoI and s[1].isdigit() and 1 <= int(s[1]) <= 9:  # To move the pawns.
         i1 = int(s[1])-1
         i2 = AtoI.index(s[0])  # Destination coordinates
@@ -102,60 +153,71 @@ def play(s):  # Play a move
                 p1 = j
                 p2 = A[j].index(char)  # Current coordinates
                 break
-        else:
-            e = "Where the hell is your player?"  # This should never occur!
-            return
-        if A[i1][i2] not in playerChars and (
-(i1 == p1-1 and i2 == p2 and W_h[i1][i2] != wallChar_h) or
-(i1 == p1-2 and i2 == p2 and W_h[i1][i2] != wallChar_h and W_h[i1+1][i2] != wallChar_h and A[i1+1][i2] in playerChars) or
-(i1 == p1+1 and i2 == p2 and W_h[p1][p2] != wallChar_h) or
-(i1 == p1+2 and i2 == p2 and W_h[p1][p2] != wallChar_h and W_h[p1+1][p2] != wallChar_h and A[i1-1][i2] in playerChars) or
-(i1 == p1 and i2 == p2-1 and W_v[i1][i2] != wallChar_v) or
-(i1 == p1 and i2 == p2-2 and W_v[i1][i2] != wallChar_v and W_v[i1][i2+1] != wallChar_v and A[i1][i2+1] in playerChars) or
-(i1 == p1 and i2 == p2+1 and W_v[p1][p2] != wallChar_v) or
-(i1 == p1 and i2 == p2+2 and W_v[p1][p2] != wallChar_v and W_v[p1][p2+1] != wallChar_v and A[i1][i2-1] in playerChars)
-):  # Check destination and walls.
+        if A[i1][i2] not in playerChars and (  # Check destination and walls.
+                (i1 == p1-1 and i2 == p2 and W_h[i1][i2] != wallChar_h) or  # Move up
+                (i1 == p1-2 and i2 == p2 and W_h[i1][i2] != wallChar_h and W_h[i1+1][i2] != wallChar_h and A[i1+1][i2] in playerChars) or  # Jump pawn up
+                (i1 == p1+1 and i2 == p2 and W_h[p1][p2] != wallChar_h) or  # Move down
+                (i1 == p1+2 and i2 == p2 and W_h[p1][p2] != wallChar_h and W_h[p1+1][p2] != wallChar_h and A[i1-1][i2] in playerChars) or  # Jump pawn down
+                (i1 == p1 and i2 == p2-1 and W_v[i1][i2] != wallChar_v) or  # Move left
+                (i1 == p1 and i2 == p2-2 and W_v[i1][i2] != wallChar_v and W_v[i1][i2+1] != wallChar_v and A[i1][i2+1] in playerChars) or  # Jump pawn left
+                (i1 == p1 and i2 == p2+1 and W_v[p1][p2] != wallChar_v) or  # Move right
+                (i1 == p1 and i2 == p2+2 and W_v[p1][p2] != wallChar_v and W_v[p1][p2+1] != wallChar_v and A[i1][i2-1] in playerChars)  # Jump pawn right
+):
             A[i1][i2] = char
             A[p1][p2] = emptyChar
             e = ""
-            nextPlayer()
+            Next = True
         else:
             e = "You can only move to cells adjacent to your player, without jumping walls. You can also jump other players."
     elif len(s) == 3 and s[0] in AtoI and s[1].isdigit() and 1 <= int(s[1]) <= 9 and s[2] in ['h', 'v']:  # To put walls.
         i1 = int(s[1])-1
         i2 = AtoI.index(s[0])
-        if not (0 <= i1 <= 7 or 0 <= i2 <= 7):
+        if not (0 <= i1 <= 7 and 0 <= i2 <= 7):
             e = "Out of the grid!"
         elif remainingWalls[player] == 0:
             e = "You're out of walls."
-        elif s[2] == 'h':
+        elif s[2] == 'h':  # For horizontal walls
             if W_h[i1][i2] != wallChar_h and W_h[i1][i2+1] != wallChar_h:
+                W_h_clone = clone(W_h)
+                W_v_clone = clone(W_v)
                 W_h[i1][i2] = wallChar_h
                 W_h[i1][i2+1] = wallChar_h
+                if checkSurrounded(A, W_h, W_v):
+                    e = "The walls you put must not block any player's path completely."
+                    return A, Next, W_h_clone, W_v_clone, remainingWalls
                 remainingWalls[player] -= 1
                 e = ""
-                nextPlayer()
+                Next = True
+            else:
+                e = "There's already a wall there."
+        elif s[2] == 'v':  # For vertical walls
+            if W_v[i1][i2] != wallChar_v and W_v[i1+1][i2] != wallChar_v:
+                W_h_clone = clone(W_h)
+                W_v_clone = clone(W_v)
+                W_v[i1][i2] = wallChar_v
+                W_v[i1+1][i2] = wallChar_v
+                if checkSurrounded(A, W_h, W_v):
+                    e = "The walls you put must not block any player's path completely."
+                    return A, Next, W_h_clone, W_v_clone, remainingWalls
+                remainingWalls[player] -= 1
+                e = ""
+                Next = True
             else:
                 e = "There's already a wall there."
         else:
-            if W_v[i1][i2] != wallChar_v and W_v[i1+1][i2] != wallChar_v:
-                W_v[i1][i2] = wallChar_v
-                W_v[i1+1][i2] = wallChar_v
-                remainingWalls[player] -= 1
-                e = ""
-                nextPlayer()
-            else:
-                e = "There's already a wall there."
+            e = "Bug?"
     else:
         e = "Wrong input. To move, write something like E 2, and to put a wall, your input must be like E 3 H."
+    return A, Next, W_h, W_v, remainingWalls
 
 def main():
     resetVars()
-    global e, players, A, W_h, W_v, player
+    global e, players, A, W_h, W_v, player, remainingWalls, playerChars
+    Next = False
     getPlayers()
     while True:
         os.system('clear')
-        print("Player %d: %s You have %d walls remaining.\n" % (player, e, remainingWalls[player]))
+        print("Player %d (%s): %s You have %d walls remaining.\n" % (player, playerChars[player], e, remainingWalls[player]))
         paint(A, W_v, W_h)
         inp = str(input()).lower()
         if inp == "q":  # The quitter
@@ -163,6 +225,8 @@ def main():
                 break
             e = ""
         else:
-            play(inp)
+            (A, Next, W_h, W_v, remainingWalls) = play(inp, A, W_h, W_v, remainingWalls, player)
+            if Next:
+                nextPlayer()
         if won[0]:
             break
