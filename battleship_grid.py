@@ -9,10 +9,7 @@ def line(first, l):
     print()
 
 def paint(g):
-    if len(g) == 10:
-        line("  ", ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'])
-    else:
-        line("  ", ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'])
+    line("  ", ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'])
     for i in range(len(g)):
         if i+1 < 10:
             f = str(i+1) + " "

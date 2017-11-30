@@ -1,7 +1,7 @@
 #! /usr/bin/python3
 
 import os
-from grid2 import paint
+from quoridor_grid import paint
 
 def resetVars():  # Reset variables
     global won, e, players, playerChars, emptyChar, wallChar_h, wallChar_v, A, W_v, W_h, player, AtoI
@@ -17,6 +17,26 @@ def resetVars():  # Reset variables
     W_h = [[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '], [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '], [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '], [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '], [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '], [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '], [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '], [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']]  # A 9x8 list for horizontal walls
     player = 1
     AtoI = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i']
+
+def instructions():
+    os.system("clear")
+    print("""\nWelcome to Quoridor.
+
+The object of the game is for one player to get to
+the row or column furthest to their starting position.
+In each turn, the player can either move to a cell
+adjacent to his current position by typing the address
+like A 1, or place a 2-cell-wide wall between the cells
+by typing the address of the cell to the wall's
+northeast and whether it is to be horizontal or vertical,
+like A 1 V. You cannot cross walls, you can jump other
+players, and if your path is blocked twice, you can move
+to the side of the adjacent player. The game can be
+played by two or four players.
+Enjoy!
+
+Press enter to continue.\n""")
+    input()
 
 def getPlayers():
     global players, A, remainingWalls
@@ -68,7 +88,7 @@ def checkWin(player, A):  # To see if anyone has won at the end of each turn.
     return(won)
 
 def nextPlayer():  # Change player
-    global player, players, won, A
+    global player, players, won, A, playerChars
     won = checkWin(player, A)
     if not won[0]:
         player += 1
@@ -76,7 +96,7 @@ def nextPlayer():  # Change player
             player = 1
     else:
         os.system('clear')
-        print("\n\nThe game has ended!\nAnd the glorious winner of this oh-so-beautifully played game is... Player %d!\n\n" % won[1])
+        print("\n\nThe game has ended!\nAnd the glorious winner of this oh-so-beautifully played game is... Player %d (%s)!\n\n" % (won[1], playerChars[won[1]]))
         input()
 
 def the_q():  # The quitter
@@ -114,6 +134,10 @@ def check(player, A, W_h, W_v):  # Continuation of checkSurrounded. Works by pla
             (p2 >= 2, None if not p2 >= 2 else str(AtoI[p2-2])+" "+str(p1+1)),  # Jump pawn to left
             (p1 <= 6, None if not p1 <= 6 else str(AtoI[p2])+" "+str(p1+3)),  # Jump pawn to down
             (p1 >= 2, None if not p1 >= 2 else str(AtoI[p2])+" "+str(p1-1)),  # Jump pawn to up
+            (p2 <= 7 and p1 >= 1, None if not (p2 <= 7 and p1 >= 1) else str(AtoI[p2+1])+" "+str(p1)),  # Jump blocks to northeast
+            (p2 >= 1 and p1 >= 1, None if not (p2 >= 1 and p1 >= 1) else str(AtoI[p2-1])+" "+str(p1)),  # Jump blocks to northwest
+            (p2 <= 7 and p1 <= 7, None if not (p2 <= 7 and p1 <= 7) else str(AtoI[p2+1])+" "+str(p1+2)),  # Jump blocks to southeast
+            (p2 >= 1 and p1 <= 7, None if not (p2 >= 1 and p1 <= 7) else str(AtoI[p2-1])+" "+str(p1+2))  # Jump blocks to southwest
 ]:
         if move[0]:
             (A_new, F_new, W_h_new, W_v_new, walls) = play(move[1], A, W_h, W_v, remainingWalls, player)  # Fake play!
@@ -161,7 +185,15 @@ def play(s, A, W_h, W_v, remainingWalls, player):  # Play a move
                 (i1 == p1 and i2 == p2-1 and W_v[i1][i2] != wallChar_v) or  # Move left
                 (i1 == p1 and i2 == p2-2 and W_v[i1][i2] != wallChar_v and W_v[i1][i2+1] != wallChar_v and A[i1][i2+1] in playerChars) or  # Jump pawn left
                 (i1 == p1 and i2 == p2+1 and W_v[p1][p2] != wallChar_v) or  # Move right
-                (i1 == p1 and i2 == p2+2 and W_v[p1][p2] != wallChar_v and W_v[p1][p2+1] != wallChar_v and A[i1][i2-1] in playerChars)  # Jump pawn right
+                (i1 == p1 and i2 == p2+2 and W_v[p1][p2] != wallChar_v and W_v[p1][p2+1] != wallChar_v and A[i1][i2-1] in playerChars) or  # Jump pawn right
+                (i1 == p1-1 and i2 == p2-1 and A[p1-1][p2] in playerChars and W_h[p1-1][p2] != wallChar_h and (p1 == 1 or W_h[p1-2][p2] == wallChar_h or A[p1-2][p2] in playerChars) and W_v[p1-1][p2-1] != wallChar_v) or  # Jump northwest when path blocked twice above
+                (i1 == p1-1 and i2 == p2-1 and A[p1][p2-1] in playerChars and W_v[p1][p2-1] != wallChar_v and (p2 == 1 or W_v[p1][p2-2] == wallChar_v or A[p1][p2-2] in playerChars) and W_h[p1-1][p2-1] != wallChar_h) or  # Jump northwest when path blocked twice on left
+                (i1 == p1+1 and i2 == p2-1 and A[p1+1][p2] in playerChars and W_h[p1][p2] != wallChar_h and (p1 == 7 or W_h[p1+1][p2] == wallChar_h or A[p1+2][p2] in playerChars) and W_v[p1+1][p2-1] != wallChar_v) or  # Jump southwest when path blocked twice below
+                (i1 == p1+1 and i2 == p2-1 and A[p1][p2-1] in playerChars and W_v[p1][p2-1] != wallChar_v and (p2 == 1 or W_v[p1][p2-2] == wallChar_v or A[p1][p2-2] in playerChars) and W_h[p1][p2-1] != wallChar_h) or  # Jump southwest when path blocked twice on left
+                (i1 == p1-1 and i2 == p2+1 and A[p1-1][p2] in playerChars and W_h[p1-1][p2] != wallChar_h and (p1 == 1 or W_h[p1-2][p2] == wallChar_h or A[p1-2][p2] in playerChars) and W_v[p1-1][p2] != wallChar_v) or  # Jump northeast when path blocked twice above
+                (i1 == p1-1 and i2 == p2+1 and A[p1][p2+1] in playerChars and W_v[p1][p2] != wallChar_v and (p2 == 7 or W_v[p1][p2+1] == wallChar_v or A[p1][p2+2] in playerChars) and W_h[p1-1][p2+1] != wallChar_h) or  # Jump northeast when path blocked twice on right
+                (i1 == p1+1 and i2 == p2+1 and A[p1+1][p2] in playerChars and W_h[p1][p2] != wallChar_h and (p1 == 7 or W_h[p1+1][p2] == wallChar_h or A[p1+2][p2] in playerChars) and W_v[p1+1][p2] != wallChar_v) or  # Jump southeast when path blocked twice below
+                (i1 == p1+1 and i2 == p2+1 and A[p1][p2+1] in playerChars and W_v[p1][p2] != wallChar_v and (p2 == 7 or W_v[p1][p2+1] == wallChar_v or A[p1][p2+2] in playerChars) and W_h[p1][p2+1] != wallChar_h)  # Jump southeast when path blocked twice on right
 ):
             A[i1][i2] = char
             A[p1][p2] = emptyChar
@@ -214,6 +246,7 @@ def main():
     resetVars()
     global e, players, A, W_h, W_v, player, remainingWalls, playerChars
     Next = False
+    instructions()
     getPlayers()
     while True:
         os.system('clear')

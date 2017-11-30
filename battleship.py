@@ -1,7 +1,7 @@
 #! /usr/bin/python3
 
 import os
-from grid import paint
+from battleship_grid import paint
 
 def resetVars():  # Reset variables
     global w, e, A1, A2, A1_ships, A2_ships, AtoJ, showWhich, shipChar, shotChar, missedChar, A1_shots, A2_shots
